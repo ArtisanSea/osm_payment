@@ -45,3 +45,6 @@
 ## ファイル
 
 - `index.html`: 画面、スタイル、タグ生成ロジックを含む本体
+- `LICENSE`: MIT License
+- `CONTRIBUTING.md`: 修正やPull Requestの進め方
+- `.gitignore`: Gitに登録しない一時ファイルの一覧
