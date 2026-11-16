@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>OSM payment:* タグジェネレーター（日本向け）</title>
+<style>
+  :root {
+    --bg: #f4f6f8;
+    --card: #ffffff;
+    --primary: #2563eb;
+    --primary-hover: #1d4ed8;
+    --border: #d1d5db;
+    --text: #1f2937;
+    --sub: #6b7280;
+    --yes-bg: #dbeafe;
+    --yes-border: #2563eb;
+    --no-bg: #fee2e2;
+    --no-border: #dc2626;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 12px;
+    padding-bottom: 180px;
+  }
+  h1 {
+    font-size: 1.15rem;
+    margin: 0 0 12px 0;
+    text-align: center;
+  }
+  .section {
+    background: var(--card);
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .section-title {
+    font-size: 0.9rem;
+    font-weight: bold;
+    margin: 0 0 8px 0;
+    color: #374151;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .preset-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .preset-btn {
+    background: #eef2ff;
+    color: #1e40af;
+    border: 1px solid #c7d2fe;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .preset-btn.clear {
+    background: #f3f4f6;
+    color: #374151;
+    border-color: #d1d5db;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
+    gap: 8px;
+  }
+  .tag-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 8px 10px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.1s;
+    text-align: left;
+  }
+  .tag-btn .label {
+    font-size: 0.88rem;
+    font-weight: 600;
+  }
+  .tag-btn .key {
+    font-size: 0.72rem;
+    color: var(--sub);
+    margin-top: 2px;
+    word-break: break-all;
+  }
+  .tag-btn[data-state="yes"] {
+    background: var(--yes-bg);
+    border-color: var(--yes-border);
+  }
+  .tag-btn[data-state="yes"] .key {
+    color: #1e40af;
+    font-weight: bold;
+  }
+  .tag-btn[data-state="no"] {
+    background: var(--no-bg);
+    border-color: var(--no-border);
+  }
+  .tag-btn[data-state="no"] .key {
+    color: #991b1b;
+    font-weight: bold;
+  }
+  .option-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.82rem;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #f3f4f6;
+  }
+  .output-dock {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #111827;
+    color: #f9fafb;
+    padding: 10px 12px;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.2);
+    z-index: 100;
+  }
+  .output-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    font-size: 0.8rem;
+  }
+  textarea {
+    width: 100%;
+    height: 85px;
+    background: #1f2937;
+    color: #e5e7eb;
+    border: 1px solid #374151;
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.82rem;
+    resize: none;
+  }
+  .copy-btn {
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 0.85rem;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  .copy-btn:active { background: var(--primary-hover); }
+  .hint { font-size: 0.75rem; color: var(--sub); font-weight: normal; }
+</style>
+</head>
+<body>
+
+<h1>OSM payment:* タグ生成（日本版）</h1>
+
+<div class="section">
+  <div class="section-title">クイックプリセット <span class="hint">ボタン押下で未選択→yes→no</span></div>
+  <div class="preset-bar">
+    <button class="preset-btn" onclick="applyPreset('conbini')">コンビニ標準</button>
+    <button class="preset-btn" onclick="applyPreset('cash_paypay')">現金＋PayPayのみ</button>
+    <button class="preset-btn" onclick="applyPreset('cash_only')">現金のみ</button>
+    <button class="preset-btn" onclick="applyPreset('cashless_std')">完全キャッシュレス</button>
+    <button class="preset-btn clear" onclick="clearAll()">全解除</button>
+  </div>
+</div>
+
+<div id="groups-container"></div>
+
+<div class="section">
+  <div class="section-title">出力オプション</div>
+  <label class="option-row">
+    <input type="checkbox" id="opt-cc-generic" checked onchange="renderOutput()">
+    <span>クレカ個別ブランド選択時に <code>payment:credit_cards=yes</code> を自動併記</span>
+  </label>
+  <label class="option-row">
+    <input type="checkbox" id="opt-others-no" onchange="renderOutput()">
+    <span><code>payment:others=no</code> を末尾に付与（これ以外の手段はすべて不可）</span>
+  </label>
+</div>
+
+<div class="output-dock">
+  <div class="output-header">
+    <span id="tag-count">生成タグ: 0件</span>
+    <button class="copy-btn" id="copy-btn" onclick="copyTags()">タグをコピー</button>
+  </div>
+  <textarea id="output" readonly placeholder="上のボタンをタップして支払い方法を選択..."></textarea>
+</div>
+
+<script>
+const CATEGORIES = [
+  {
+    title: "基本・現金・カード総称",
+    items: [
+      { key: "payment:cash", label: "現金" },
+      { key: "payment:credit_cards", label: "クレカ全般" },
+      { key: "payment:debit_cards", label: "デビット全般" },
+      { key: "payment:contactless", label: "タッチ決済全般" },
+      { key: "payment:cards", label: "カード類全般" }
+    ]
+  },
+  {
+    title: "クレジットカード（国際ブランド）",
+    isCreditCard: true,
+    items: [
+      { key: "payment:visa", label: "Visa" },
+      { key: "payment:mastercard", label: "Mastercard" },
+      { key: "payment:jcb", label: "JCB" },
+      { key: "payment:american_express", label: "AMEX" },
+      { key: "payment:diners_club", label: "Diners Club" },
+      { key: "payment:discover", label: "Discover" },
+      { key: "payment:unionpay", label: "銀聯 (UnionPay)" }
+    ]
+  },
+  {
+    title: "交通系ICカード",
+    items: [
+      { key: "payment:icsf", label: "交通系IC (全国相互)" },
+      { key: "payment:suica", label: "Suica" },
+      { key: "payment:pasmo", label: "PASMO" },
+      { key: "payment:icoca", label: "ICOCA" },
+      { key: "payment:pitapa", label: "PiTaPa" }
+    ]
+  },
+  {
+    title: "電子マネー（非接触IC）",
+    items: [
+      { key: "payment:id", label: "iD" },
+      { key: "payment:quicpay", label: "QUICPay" },
+      { key: "payment:edy", label: "楽天Edy" },
+      { key: "payment:nanaco", label: "nanaco" },
+      { key: "payment:waon", label: "WAON" }
+    ]
+  },
+  {
+    title: "QR・バーコード決済",
+    items: [
+      { key: "payment:paypay", label: "PayPay" },
+      { key: "payment:rakuten_pay", label: "楽天ペイ" },
+      { key: "payment:d_barai", label: "d払い" },
+      { key: "payment:au_pay", label: "au PAY" },
+      { key: "payment:merpay", label: "メルペイ" },
+      { key: "payment:alipay", label: "Alipay" },
+      { key: "payment:wechat", label: "WeChat Pay" }
+    ]
+  }
+];
+
+const state = {};
+
+function init() {
+  const container = document.getElementById("groups-container");
+  CATEGORIES.forEach(cat => {
+    const sec = document.createElement("div");
+    sec.className = "section";
+    sec.innerHTML = `<div class="section-title">${cat.title}</div>`;
+    const grid = document.createElement("div");
+    grid.className = "grid";
+
+    cat.items.forEach(item => {
+      state[item.key] = null;
+      const btn = document.createElement("button");
+      btn.className = "tag-btn";
+      btn.id = "btn-" + item.key;
+      btn.innerHTML = `<span class="label">${item.label}</span><span class="key">${item.key}</span>`;
+      btn.onclick = () => cycleState(item.key);
+      grid.appendChild(btn);
+    });
+
+    sec.appendChild(grid);
+    container.appendChild(sec);
+  });
+}
+
+function cycleState(key) {
+  if (state[key] === null) state[key] = "yes";
+  else if (state[key] === "yes") state[key] = "no";
+  else state[key] = null;
+  updateUI();
+}
+
+function updateUI() {
+  Object.keys(state).forEach(key => {
+    const btn = document.getElementById("btn-" + key);
+    const val = state[key];
+    if (val) {
+      btn.setAttribute("data-state", val);
+      btn.querySelector(".key").textContent = `${key}=${val}`;
+    } else {
+      btn.removeAttribute("data-state");
+      btn.querySelector(".key").textContent = key;
+    }
+  });
+  renderOutput();
+}
+
+function renderOutput() {
+  const lines = [];
+  const ccKeys = CATEGORIES.find(c => c.isCreditCard).items.map(i => i.key);
+  const hasAnyCCYes = ccKeys.some(k => state[k] === "yes");
+  const autoCC = document.getElementById("opt-cc-generic").checked;
+  const othersNo = document.getElementById("opt-others-no").checked;
+
+  CATEGORIES.forEach(cat => {
+    cat.items.forEach(item => {
+      if (item.key === "payment:credit_cards" && autoCC && hasAnyCCYes && state[item.key] !== "no") {
+        lines.push("payment:credit_cards=yes");
+        return;
+      }
+      if (state[item.key] !== null) {
+        lines.push(`${item.key}=${state[item.key]}`);
+      }
+    });
+  });
+
+  if (othersNo && lines.length > 0) {
+    lines.push("payment:others=no");
+  }
+
+  document.getElementById("output").value = lines.join("\n");
+  document.getElementById("tag-count").textContent = `生成タグ: ${lines.length}件`;
+}
+
+function clearAll() {
+  Object.keys(state).forEach(k => state[k] = null);
+  document.getElementById("opt-others-no").checked = false;
+  updateUI();
+}
+
+function applyPreset(type) {
+  clearAll();
+  if (type === "conbini") {
+    ["payment:cash", "payment:visa", "payment:mastercard", "payment:jcb",
+     "payment:american_express", "payment:diners_club", "payment:icsf",
+     "payment:id", "payment:quicpay", "payment:edy", "payment:nanaco", "payment:waon",
+     "payment:paypay", "payment:rakuten_pay", "payment:d_barai", "payment:au_pay", "payment:merpay"
+    ].forEach(k => state[k] = "yes");
+  } else if (type === "cash_paypay") {
+    state["payment:cash"] = "yes";
+    state["payment:paypay"] = "yes";
+    document.getElementById("opt-others-no").checked = true;
+  } else if (type === "cash_only") {
+    state["payment:cash"] = "yes";
+    document.getElementById("opt-others-no").checked = true;
+  } else if (type === "cashless_std") {
+    state["payment:cash"] = "no";
+    ["payment:visa", "payment:mastercard", "payment:jcb",
+     "payment:american_express", "payment:diners_club", "payment:icsf",
+     "payment:id", "payment:quicpay", "payment:paypay"
+    ].forEach(k => state[k] = "yes");
+  }
+  updateUI();
+}
+
+function copyTags() {
+  const text = document.getElementById("output").value;
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById("copy-btn");
+    btn.textContent = "コピー完了！";
+    setTimeout(() => btn.textContent = "タグをコピー", 1500);
+  });
+}
+
+init();
+</script>
+</body>
+</html>
